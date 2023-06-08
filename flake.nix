@@ -19,6 +19,7 @@
     # rust toolchain
     toolchain = fenix.packages.${system}.complete.withComponents ["cargo" "rustc" "rustfmt" "rust-src" "rustc-dev" "llvm-tools-preview"];
     env = {
+      nativeBuildInputs = [pkgs.removeReferencesTo];
       buildInputs = [toolchain pkgs.git];
 
       CARGO = "${toolchain}/bin/cargo";
@@ -116,6 +117,7 @@
             test -e $out/bin/$f || ln -s ${toolchain}/bin/$f $out/bin/$f
           done
           mv dist/lib $out
+          find $out -type f | xargs remove-references-to -t ${nix-sources}
         '';
       });
 
