@@ -8,10 +8,10 @@
     };
   };
   outputs = {
+    self,
     nixpkgs,
     fenix,
     cargo-clif,
-    ...
   }: let
     system = "x86_64-linux";
     pkgs = import nixpkgs {inherit system;};
@@ -124,5 +124,16 @@
     devShells.${system}.default = pkgs.mkShell {
       buildInputs = [toolchain];
     };
+
+    checks.${system}.default =
+      pkgs.runCommand "test" {
+        buildInputs = [self.packages.${system}.default pkgs.stdenv.cc];
+      } ''
+        mkdir -p $out
+        cd $out
+        cargo new cargo-clif-test
+        cd cargo-clif-test
+        [[ "$(cargo run)" = "Hello, world!" ]]
+      '';
   };
 }
