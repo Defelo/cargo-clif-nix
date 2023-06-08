@@ -17,7 +17,7 @@
     pkgs = import nixpkgs {inherit system;};
 
     # rust toolchain
-    toolchain = fenix.packages.${system}.complete.withComponents ["cargo" "rustc" "rust-src" "rustc-dev" "llvm-tools-preview"];
+    toolchain = fenix.packages.${system}.complete.withComponents ["cargo" "rustc" "rustfmt" "rust-src" "rustc-dev" "llvm-tools-preview"];
     env = {
       buildInputs = [toolchain pkgs.git];
 
@@ -111,6 +111,9 @@
           mkdir -p $out/bin
           for f in $(ls dist/bin); do
             mv dist/bin/$f $out/bin/''${f%-clif}
+          done
+          for f in $(ls ${toolchain}/bin); do
+            test -e $out/bin/$f || ln -s ${toolchain}/bin/$f $out/bin/$f
           done
           mv dist/lib $out
         '';
