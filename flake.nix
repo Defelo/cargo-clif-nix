@@ -136,4 +136,9 @@
         [[ "$(cargo run)" = "Hello, world!" ]]
       '';
   };
+
+  nixConfig = {
+    extra-substituters = ["https://cargo-clif-nix.cachix.org"];
+    extra-trusted-public-keys = ["cargo-clif-nix.cachix.org-1:pU9n2ylKVZPgv+pXDWJfyajcbLXVQk5YwM9ukRHN1qA="];
+  };
 }
