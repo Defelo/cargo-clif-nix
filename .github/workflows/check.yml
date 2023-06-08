@@ -1,0 +1,29 @@
+name: check
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    name: check
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Setup Nix
+        uses: cachix/install-nix-action@v21
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v12
+        with:
+          name: cargo-clif-nix
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: nix flake check
+        run: nix flake check
