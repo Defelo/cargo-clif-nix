@@ -17,15 +17,9 @@
     pkgs = import nixpkgs {inherit system;};
 
     # rust toolchain
-    toolchain = fenix.packages.${system}.complete.withComponents ["cargo" "rustc" "rustfmt" "rust-src" "rustc-dev" "llvm-tools-preview"];
-    env = {
-      nativeBuildInputs = [pkgs.removeReferencesTo];
-      buildInputs = [toolchain pkgs.git];
-
-      CARGO = "${toolchain}/bin/cargo";
-      RUSTC = "${toolchain}/bin/rustc";
-      RUSTDOC = "${toolchain}/bin/rustdoc";
-    };
+    default-toolchain = fenix.packages.${system}.complete;
+    default-components = ["cargo" "clippy" "rust-docs" "rust-std" "rustc" "rustfmt" "rust-analyzer" "rust-src"];
+    required-components = ["cargo" "rustc" "rust-src" "rustc-dev" "llvm-tools-preview"];
 
     # rust dependencies from crates.io
     crates = map (
@@ -86,55 +80,88 @@
       ${builtins.concatStringsSep "\n" (map (name: "ln -s ${downloads.${name}} $out/${name}") (builtins.attrNames downloads))}
     '';
   in {
-    packages.${system}.default = pkgs.stdenv.mkDerivation (env
-      // {
-        name = "cargo-clif";
-        src = cargo-clif;
+    packages.${system} = {
+      inherit default-toolchain;
+      default = self.lib.with-toolchain default-toolchain default-components;
+    };
+    lib = {
+      with-toolchain = toolchain': components: let
+        toolchain = toolchain'.withComponents (required-components ++ components);
+      in
+        pkgs.symlinkJoin {
+          name = "cargo-clif-with-toolchain";
+          paths = [toolchain (self.lib.cargo-clif toolchain)];
+          postBuild = let
+            cargo-clippy = pkgs.writeShellScript "cargo-clippy" ''
+              export PATH=${toolchain}/bin
+              exec -a cargo-clippy ${toolchain}/bin/cargo-clippy "$@"
+            '';
+          in (builtins.concatStringsSep "\n" [
+            "ln -sf cargo-clif $out/bin/cargo"
+            "ln -sf ${cargo-clippy} $out/bin/cargo-clippy"
+          ]);
+        };
+      cargo-clif = toolchain:
+        pkgs.stdenv.mkDerivation {
+          name = "cargo-clif";
+          src = cargo-clif;
 
-        patches = [./build_system.patch];
+          nativeBuildInputs = [pkgs.removeReferencesTo];
+          buildInputs = [toolchain pkgs.git];
 
-        configurePhase = ''
-          export CARGO_HOME=$PWD/.cargo-home
-          mkdir -p $CARGO_HOME
-          ln -s ${cargoconfig} $CARGO_HOME/config
+          CARGO = "${toolchain}/bin/cargo";
+          RUSTC = "${toolchain}/bin/rustc";
+          RUSTDOC = "${toolchain}/bin/rustdoc";
 
-          cp -Lr ${download} download
-          chmod -R u+w download
-        '';
+          patches = [./build_system.patch];
 
-        buildPhase = ''
-          rustc y.rs
-          ./y prepare
-          ./y build
-        '';
+          configurePhase = ''
+            export CARGO_HOME=$PWD/.cargo-home
+            mkdir -p $CARGO_HOME
+            ln -s ${cargoconfig} $CARGO_HOME/config
 
-        installPhase = ''
-          mkdir -p $out/bin
-          for f in $(ls dist/bin); do
-            mv dist/bin/$f $out/bin/''${f%-clif}
-          done
-          for f in $(ls ${toolchain}/bin); do
-            test -e $out/bin/$f || ln -s ${toolchain}/bin/$f $out/bin/$f
-          done
-          mv dist/lib $out
-          find $out -type f | xargs remove-references-to -t ${nix-sources}
-        '';
-      });
+            cp -Lr ${download} download
+            chmod -R u+w download
+          '';
 
-    devShells.${system}.default = pkgs.mkShell {
-      buildInputs = [toolchain];
+          buildPhase = ''
+            rustc y.rs
+            ./y prepare
+            ./y build
+          '';
+
+          installPhase = ''
+            mv dist $out
+            find $out -type f | xargs remove-references-to -t ${nix-sources}
+          '';
+        };
     };
 
-    checks.${system}.default =
-      pkgs.runCommand "test" {
-        buildInputs = [self.packages.${system}.default pkgs.stdenv.cc];
-      } ''
+    devShells.${system}.default = pkgs.mkShell {
+      buildInputs = [(default-toolchain.withComponents default-components)];
+    };
+
+    checks.${system} = let
+      test = ''
         mkdir -p $out
         cd $out
         cargo new cargo-clif-test
         cd cargo-clif-test
         [[ "$(cargo run)" = "Hello, world!" ]]
+        readelf -p .comment target/debug/cargo-clif-test | grep -q cg_clif
       '';
+    in {
+      default =
+        pkgs.runCommand "test-default" {
+          buildInputs = [self.packages.${system}.default pkgs.stdenv.cc];
+        }
+        test;
+      no-components =
+        pkgs.runCommand "test-no-components" {
+          buildInputs = [(self.lib.with-toolchain default-toolchain []) pkgs.stdenv.cc];
+        }
+        test;
+    };
   };
 
   nixConfig = {
