@@ -155,7 +155,12 @@
         pkgs.runCommand "test-default" {
           buildInputs = [self.packages.${system}.default pkgs.stdenv.cc];
         }
-        test;
+        ''
+          ${test}
+          cargo clippy
+          rust-analyzer diagnostics . 2> stderr
+          ! [[ -s stderr ]]
+        '';
       no-components =
         pkgs.runCommand "test-no-components" {
           buildInputs = [(self.lib.with-toolchain default-toolchain []) pkgs.stdenv.cc];
