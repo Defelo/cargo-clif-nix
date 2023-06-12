@@ -137,9 +137,15 @@
         };
     };
 
-    devShells.${system}.default = pkgs.mkShell {
-      buildInputs = [(default-toolchain.withComponents default-components)];
-    };
+    devShells.${system}.default = let
+      toolchain = default-toolchain.withComponents required-components;
+    in
+      pkgs.mkShell {
+        CARGO = "${toolchain}/bin/cargo";
+        RUSTC = "${toolchain}/bin/rustc";
+        RUSTDOC = "${toolchain}/bin/rustdoc";
+        buildInputs = [toolchain];
+      };
 
     checks.${system} = let
       test = ''
