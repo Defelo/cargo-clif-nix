@@ -21,6 +21,17 @@
     default-components = ["cargo" "clippy" "rust-docs" "rust-std" "rustc" "rustfmt" "rust-analyzer" "rust-src"];
     required-components = ["cargo" "rustc" "rust-src" "rustc-dev" "llvm-tools-preview"];
 
+    # apply patches before downloading crates
+    patched-cargo-clif = pkgs.stdenv.mkDerivation {
+      name = "patched-cargo-clif";
+      src = cargo-clif;
+      patches = [
+        ./build_system.patch
+        ./index_map.patch
+      ];
+      installPhase = "cp -r . $out";
+    };
+
     # rust dependencies from crates.io
     crates = map (
       {
@@ -40,7 +51,7 @@
           tar xzf ${crate} -C $out
           echo '{"package":"${checksum}","files":{}}' > $out/${name}-${version}/.cargo-checksum.json
         ''
-    ) (builtins.filter (builtins.hasAttr "checksum") (pkgs.lib.flatten (map (x: (fromTOML x).package) (map builtins.readFile (builtins.filter (x: builtins.baseNameOf x == "Cargo.lock") (pkgs.lib.filesystem.listFilesRecursive cargo-clif))))));
+    ) (builtins.filter (builtins.hasAttr "checksum") (pkgs.lib.flatten (map (x: (fromTOML x).package) (map builtins.readFile (builtins.filter (x: builtins.baseNameOf x == "Cargo.lock") (pkgs.lib.filesystem.listFilesRecursive patched-cargo-clif))))));
     nix-sources = pkgs.runCommand "deps" {} ''
       mkdir -p $out
       ${builtins.concatStringsSep "\n" (map (crate: ''
@@ -58,7 +69,7 @@
     '';
 
     # git repos downloaded by `./y.rs prepare`
-    files = builtins.filter (pkgs.lib.hasSuffix ".rs") (pkgs.lib.filesystem.listFilesRecursive (cargo-clif + /build_system));
+    files = builtins.filter (pkgs.lib.hasSuffix ".rs") (pkgs.lib.filesystem.listFilesRecursive (patched-cargo-clif + /build_system));
     match = regex: string: builtins.filter builtins.isList (builtins.split regex string);
     matches = pkgs.lib.flatten (map (match "(GitRepo::github[(][^)]*[)])") (map builtins.readFile files));
     clean = map (builtins.replaceStrings ["\n" " "] ["" ""]) matches;
@@ -104,7 +115,7 @@
       cargo-clif = toolchain:
         pkgs.stdenv.mkDerivation {
           name = "cargo-clif";
-          src = cargo-clif;
+          src = patched-cargo-clif;
 
           nativeBuildInputs = [pkgs.removeReferencesTo];
           buildInputs = [toolchain pkgs.git];
@@ -112,8 +123,6 @@
           CARGO = "${toolchain}/bin/cargo";
           RUSTC = "${toolchain}/bin/rustc";
           RUSTDOC = "${toolchain}/bin/rustdoc";
-
-          patches = [./build_system.patch];
 
           configurePhase = ''
             export CARGO_HOME=$PWD/.cargo-home
