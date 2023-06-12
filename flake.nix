@@ -104,7 +104,7 @@
           paths = [toolchain (self.lib.cargo-clif toolchain)];
           postBuild = let
             cargo-clippy = pkgs.writeShellScript "cargo-clippy" ''
-              export PATH=${toolchain}/bin
+              export PATH=${toolchain}/bin:$PATH
               exec -a cargo-clippy ${toolchain}/bin/cargo-clippy "$@"
             '';
           in (builtins.concatStringsSep "\n" [
