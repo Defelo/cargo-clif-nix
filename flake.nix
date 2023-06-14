@@ -27,7 +27,6 @@
       src = cargo-clif;
       patches = [
         ./build_system.patch
-        ./index_map.patch
       ];
       installPhase = "cp -r . $out";
     };
