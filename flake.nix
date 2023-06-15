@@ -102,14 +102,14 @@
           name = "cargo-clif-with-toolchain";
           paths = [toolchain (self.lib.cargo-clif toolchain)];
           postBuild = let
-            cargo-clippy = pkgs.writeShellScript "cargo-clippy" ''
+            cargo-proxy = pkgs.writeShellScript "cargo-proxy" ''
               export PATH=${toolchain}/bin:$PATH
-              exec -a cargo-clippy ${toolchain}/bin/cargo-clippy "$@"
+              case "$1" in
+                clippy|llvm-cov) ${toolchain}/bin/cargo "$@" ;;
+                *) cargo-clif "$@" ;;
+              esac
             '';
-          in (builtins.concatStringsSep "\n" [
-            "ln -sf cargo-clif $out/bin/cargo"
-            "ln -sf ${cargo-clippy} $out/bin/cargo-clippy"
-          ]);
+          in "ln -sf ${cargo-proxy} $out/bin/cargo";
         };
       cargo-clif = toolchain:
         pkgs.stdenv.mkDerivation {
@@ -167,13 +167,14 @@
     in {
       default =
         pkgs.runCommand "test-default" {
-          buildInputs = [self.packages.${system}.default pkgs.stdenv.cc];
+          buildInputs = [self.packages.${system}.default pkgs.stdenv.cc pkgs.cargo-llvm-cov];
         }
         ''
           ${test}
           cargo clippy
           rust-analyzer diagnostics . 2> stderr
           ! [[ -s stderr ]]
+          cargo llvm-cov run
         '';
       no-components =
         pkgs.runCommand "test-no-components" {
