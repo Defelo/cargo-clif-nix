@@ -105,7 +105,7 @@
             cargo-proxy = pkgs.writeShellScript "cargo-proxy" ''
               export PATH=${toolchain}/bin:$PATH
               case "$1" in
-                llvm-cov) ${toolchain}/bin/cargo "$@" ;;
+                clippy|llvm-cov) ${toolchain}/bin/cargo "$@" ;;
                 *) cargo-clif "$@" ;;
               esac
             '';
