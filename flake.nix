@@ -103,7 +103,6 @@
           paths = [toolchain (self.lib.cargo-clif toolchain)];
           postBuild = let
             cargo-proxy = pkgs.writeShellScript "cargo-proxy" ''
-              export PATH=${toolchain}/bin:$PATH
               case "$1" in
                 clippy|llvm-cov) ${toolchain}/bin/cargo "$@" ;;
                 *) cargo-clif "$@" ;;
