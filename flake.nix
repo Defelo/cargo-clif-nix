@@ -32,47 +32,59 @@
     };
 
     # rust dependencies from crates.io
-    crates = map (
-      {
-        name,
-        version,
-        checksum,
-        ...
-      }: let
-        crate = pkgs.fetchurl {
-          url = "https://crates.io/api/v1/crates/${name}/${version}/download";
-          name = "download-${name}-${version}";
-          sha256 = checksum;
-        };
-      in
-        pkgs.runCommandLocal "unpack-${name}-${version}" {} ''
-          mkdir -p $out
-          tar xzf ${crate} -C $out
-          echo '{"package":"${checksum}","files":{}}' > $out/${name}-${version}/.cargo-checksum.json
-        ''
-    ) (builtins.filter (builtins.hasAttr "checksum") (pkgs.lib.flatten (map (x: (fromTOML x).package) (map builtins.readFile (builtins.filter (x: builtins.baseNameOf x == "Cargo.lock") (pkgs.lib.filesystem.listFilesRecursive patched-cargo-clif))))));
-    nix-sources = pkgs.runCommand "deps" {} ''
-      mkdir -p $out
-      ${builtins.concatStringsSep "\n" (map (crate: ''
-          for f in $(ls ${crate}); do
-            test -e $out/$f || ln -s ${crate}/$f $out/$f
-          done
-        '')
-        crates)}
-    '';
-    cargoconfig = pkgs.writeText "cargo-config" ''
-      [source.crates-io]
-      replace-with = "nix-sources"
-      [source.nix-sources]
-      directory = "${nix-sources}"
-    '';
+    crates = toolchain:
+      map (
+        {
+          name,
+          version,
+          checksum,
+          ...
+        }: let
+          crate = pkgs.fetchurl {
+            url = "https://crates.io/api/v1/crates/${name}/${version}/download";
+            name = "download-${name}-${version}";
+            sha256 = checksum;
+          };
+        in
+          pkgs.runCommandLocal "unpack-${name}-${version}" {} ''
+            mkdir -p $out
+            tar xzf ${crate} -C $out
+            echo '{"package":"${checksum}","files":{}}' > $out/${name}-${version}/.cargo-checksum.json
+          ''
+      ) (
+        builtins.filter (builtins.hasAttr "checksum") (pkgs.lib.flatten (map (x: (fromTOML x).package) (map builtins.readFile (builtins.filter (
+            x: let
+              name = builtins.baseNameOf x;
+            in
+              name == "Cargo.lock" || pkgs.lib.hasSuffix "-lock.toml" name
+          ) (
+            pkgs.lib.flatten (map pkgs.lib.filesystem.listFilesRecursive ([patched-cargo-clif download] ++ toolchain.paths))
+          )))))
+      );
+    nix-sources = toolchain:
+      pkgs.runCommand "deps" {} ''
+        mkdir -p $out
+        ${builtins.concatStringsSep "\n" (map (crate: ''
+            for f in $(ls ${crate}); do
+              test -e $out/$f || ln -s ${crate}/$f $out/$f
+            done
+          '')
+          (crates toolchain))}
+      '';
+    cargoconfig = toolchain:
+      pkgs.writeText "cargo-config" ''
+        [source.crates-io]
+        replace-with = "nix-sources"
+        [source.nix-sources]
+        directory = "${nix-sources toolchain}"
+      '';
 
-    # git repos downloaded by `./y.rs prepare`
+    # git repos downloaded by `./y.sh prepare`
     files = builtins.filter (pkgs.lib.hasSuffix ".rs") (pkgs.lib.filesystem.listFilesRecursive (patched-cargo-clif + /build_system));
     match = regex: string: builtins.filter builtins.isList (builtins.split regex string);
     matches = pkgs.lib.flatten (map (match "(GitRepo::github[(][^)]*[)])") (map builtins.readFile files));
     clean = map (builtins.replaceStrings ["\n" " "] ["" ""]) matches;
-    repos = map (x: builtins.head (match "GitRepo::github[(]\"(.*)\",\"(.*)\",\"(.*)\",\".*\",?[)]" x)) clean;
+    repos = map (x: builtins.head (match "GitRepo::github[(]\"(.*)\",\"(.*)\",\"(.*)\",\".*\",\".*\",?[)]" x)) clean;
     downloads = builtins.listToAttrs (map (x: let
         user = builtins.elemAt x 0;
         repo = builtins.elemAt x 1;
@@ -125,21 +137,20 @@
           configurePhase = ''
             export CARGO_HOME=$PWD/.cargo-home
             mkdir -p $CARGO_HOME
-            ln -s ${cargoconfig} $CARGO_HOME/config
+            ln -s ${cargoconfig toolchain} $CARGO_HOME/config
 
             cp -Lr ${download} download
             chmod -R u+w download
           '';
 
           buildPhase = ''
-            rustc y.rs
-            ./y prepare
-            ./y build
+            ./y.sh prepare
+            ./y.sh build
           '';
 
           installPhase = ''
             mv dist $out
-            find $out -type f | xargs remove-references-to -t ${nix-sources}
+            find $out -type f | xargs remove-references-to -t ${nix-sources toolchain}
           '';
         };
     };
