@@ -1,20 +1,20 @@
 diff --git a/build_system/prepare.rs b/build_system/prepare.rs
-index ac2dc47d..f5613762 100644
+index e31e39a4..6ce46b78 100644
 --- a/build_system/prepare.rs
 +++ b/build_system/prepare.rs
-@@ -10,8 +10,6 @@
- use super::utils::{copy_dir_recursively, git_command, retry_spawn_and_wait, spawn_and_wait};
+@@ -11,7 +11,6 @@
+ };
  
- pub(crate) fn prepare(dirs: &Dirs, rustc: &Path) {
--    RelPath::DOWNLOAD.ensure_fresh(dirs);
--
-     prepare_stdlib(dirs, rustc);
-     prepare_coretests(dirs, rustc);
- 
-@@ -131,44 +129,7 @@ fn clone_repo_shallow_github(dirs: &Dirs, download_dir: &Path, user: &str, repo:
+ pub(crate) fn prepare(dirs: &Dirs) {
+-    RelPath::DOWNLOAD.ensure_exists(dirs);
+     super::tests::RAND_REPO.fetch(dirs);
+     super::tests::REGEX_REPO.fetch(dirs);
+     super::tests::PORTABLE_SIMD_REPO.fetch(dirs);
+@@ -195,43 +194,6 @@ fn clone_repo_shallow_github(dirs: &Dirs, download_dir: &Path, user: &str, repo:
+     let archive_url = format!("https://github.com/{}/{}/archive/{}.tar.gz", user, repo, rev);
      let archive_file = RelPath::DOWNLOAD.to_path(dirs).join(format!("{}.tar.gz", rev));
      let archive_dir = RelPath::DOWNLOAD.to_path(dirs).join(format!("{}-{}", repo, rev));
- 
+-
 -    eprintln!("[DOWNLOAD] {}/{} from {}", user, repo, archive_url);
 -
 -    // Remove previous results if they exists
@@ -49,22 +49,21 @@ index ac2dc47d..f5613762 100644
 -    // Rename unpacked dir to the expected name
 -    std::fs::rename(archive_dir, &download_dir).unwrap();
 -
-     init_git_repo(&download_dir);
--
 -    // Cleanup
 -    std::fs::remove_file(archive_file).unwrap();
  }
  
  fn init_git_repo(repo_dir: &Path) {
 diff --git a/build_system/utils.rs b/build_system/utils.rs
-index 3e12ed22..eaf08809 100644
+index 41fc366e..750e0c31 100644
 --- a/build_system/utils.rs
 +++ b/build_system/utils.rs
-@@ -78,6 +78,7 @@ fn base_cmd(&self, command: &str, cargo: &Path, dirs: &Dirs) -> Command {
-         let mut cmd = Command::new(cargo);
- 
-         cmd.arg(command)
-+            .arg("--offline")
-             .arg("--manifest-path")
+@@ -82,7 +82,7 @@ fn base_cmd(&self, command: &str, cargo: &Path, dirs: &Dirs) -> Command {
              .arg(self.manifest_path(dirs))
              .arg("--target-dir")
+             .arg(self.target_dir(dirs))
+-            .arg("--locked");
++            .arg("--offline");
+ 
+         if dirs.frozen {
+             cmd.arg("--frozen");
