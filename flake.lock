@@ -3,11 +3,11 @@
     "cargo-clif": {
       "flake": false,
       "locked": {
-        "lastModified": 1687522655,
-        "narHash": "sha256-syFemXNbQ4Y4hb1Lci/YiiI0tPw0Ck+k83JlRW9oVGQ=",
+        "lastModified": 1687695223,
+        "narHash": "sha256-iVFSuWJA83p4SEZRhk+JxUnS6hxx1mwYOisc4wDhbds=",
         "owner": "bjorn3",
         "repo": "rustc_codegen_cranelift",
-        "rev": "e44f47adf7e2021bdbe5771a74646525437d7477",
+        "rev": "85b5253806531fecc01715318a8bc71a5a70d29a",
         "type": "github"
       },
       "original": {
@@ -22,11 +22,11 @@
         "rust-analyzer-src": "rust-analyzer-src"
       },
       "locked": {
-        "lastModified": 1687587840,
-        "narHash": "sha256-tj6XNs6OgIOA3egl6sUIA+LsUi9Lk0VNJt1bTWvn+cw=",
+        "lastModified": 1687674253,
+        "narHash": "sha256-wXpJrXGIcGbwyxF1ky1VyPg8YoVuAkoj57+kSRJ5yek=",
         "owner": "nix-community",
         "repo": "fenix",
-        "rev": "a25163cf5b40656b45d9363d6404564272d8f6e5",
+        "rev": "447bb10577505fb657724a7c02d406bfdec431ed",
         "type": "github"
       },
       "original": {
@@ -53,11 +53,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1687645605,
-        "narHash": "sha256-HTbXezpXNtoSFhNf2s+7XYiE9vFQTg9i48d5SxoaWK8=",
+        "lastModified": 1687729501,
+        "narHash": "sha256-mTLkMePoHUWvTCf3NuKbeYEea/tsikSIKBWwb9OfRr4=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ee3d8c299c484fd661891ef32ca9d1eb65da22d1",
+        "rev": "35130d4b4f0b8c50ed2aceb909a538c66c91d4a0",
         "type": "github"
       },
       "original": {
